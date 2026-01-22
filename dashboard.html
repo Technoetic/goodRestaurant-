@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>노량진 맛집 대시보드</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .transition-card {
+            transition: all 0.2s ease-in-out;
+        }
+        .sort-btn {
+            @apply px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300
+                   bg-white hover:bg-gray-50 text-gray-700 transition-colors;
+        }
+        .sort-btn.active {
+            @apply bg-orange-500 text-white border-orange-500 hover:bg-orange-600;
+        }
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-6">
+            <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-2">
+                <span>🍽️</span> 노량진 맛집 대시보드
+            </h1>
+            <p class="text-orange-100 mt-1">아이그로스 교육센터 주변 맛집 리스트</p>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Search & Filter Section -->
+        <section class="bg-white rounded-xl shadow-md p-4 mb-6">
+            <div class="flex flex-col md:flex-row gap-4">
+                <!-- Search -->
+                <div class="flex-1">
+                    <div class="relative">
+                        <input type="text" id="searchInput" placeholder="식당명 또는 메뉴 검색..."
+                            class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none">
+                        <svg class="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                    </div>
+                </div>
+                <!-- Filters -->
+                <div class="flex flex-wrap gap-2">
+                    <select id="categoryFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none">
+                        <option value="all">전체 카테고리</option>
+                        <option value="한식">한식</option>
+                        <option value="중식">중식</option>
+                        <option value="일식">일식</option>
+                        <option value="양식">양식</option>
+                        <option value="아시안">아시안</option>
+                        <option value="분식">분식</option>
+                        <option value="기타">기타</option>
+                    </select>
+                    <select id="priceFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none">
+                        <option value="all">전체 가격</option>
+                        <option value="low">~7,000원</option>
+                        <option value="mid">7,001~12,000원</option>
+                        <option value="high">12,001원~</option>
+                    </select>
+                    <label class="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                        <input type="checkbox" id="recommendedFilter" class="w-4 h-4 text-orange-500 rounded focus:ring-orange-500">
+                        <span class="text-sm">⭐ 추천만</span>
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <!-- Stats Cards -->
+        <section class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-xl shadow-md p-4 transition-card card-hover">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                        <span class="text-2xl">🍽️</span>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">총 맛집</p>
+                        <p class="text-2xl font-bold text-gray-800" id="totalCount">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-md p-4 transition-card card-hover">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                        <span class="text-2xl">💰</span>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">평균 가격</p>
+                        <p class="text-2xl font-bold text-gray-800" id="avgPrice">0원</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-md p-4 transition-card card-hover">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                        <span class="text-2xl">⭐</span>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">추천 맛집</p>
+                        <p class="text-2xl font-bold text-gray-800" id="recommendedCount">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-md p-4 transition-card card-hover">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                        <span class="text-2xl">📋</span>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">검색 결과</p>
+                        <p class="text-2xl font-bold text-gray-800" id="filteredCount">0</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Charts Section -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="bg-white rounded-xl shadow-md p-4">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">📊 카테고리별 분포</h2>
+                <div class="h-64">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-md p-4">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">💰 가격대별 분포</h2>
+                <div class="h-64">
+                    <canvas id="priceChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Restaurant Cards Section -->
+        <section class="mb-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                <h2 class="text-lg font-semibold text-gray-800">📋 맛집 리스트</h2>
+                <!-- Sort Buttons -->
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="sortBy('name')" id="sortBtn-name" class="sort-btn">
+                        이름순 <span id="sort-name" class="ml-1">↕</span>
+                    </button>
+                    <button onclick="sortBy('category')" id="sortBtn-category" class="sort-btn">
+                        카테고리순 <span id="sort-category" class="ml-1">↕</span>
+                    </button>
+                    <button onclick="sortBy('price')" id="sortBtn-price" class="sort-btn">
+                        가격순 <span id="sort-price" class="ml-1">↕</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card Grid -->
+            <div id="restaurantCards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-gray-400 py-6 mt-8">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p>🍽️ 노량진 맛집 대시보드 - 집단 지성으로 만드는 맛집 리스트</p>
+            <p class="text-sm mt-2">데이터 출처: 아이그로스 교육센터</p>
+        </div>
+    </footer>
+
+    <script>
+        // Data
+        const restaurants = [
+  {
+    "id": 1,
+    "name": "취복루",
+    "category": "중식",
+    "menu1": { "name": "짜장면", "price": 5000 },
+    "menu2": { "name": "양고기 볶음밥", "price": 9000 },
+    "link": "https://naver.me/F9QpRjej",
+    "note": "꿔바로우 비추천...\n짜장 가격 생각하면 괜찮고 맛있어요",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://d12zq4w4guyljn.cloudfront.net/300_300_20251031071605_photo1_0dd9988cf38e.webp"
+  },
+  {
+    "id": 2,
+    "name": "다독이네 숯불구이",
+    "category": "한식",
+    "menu1": { "name": "뼈삼겹갈비", "price": 14000 },
+    "menu2": { "name": "양념돼지갈비", "price": 13000 },
+    "link": "https://naver.me/GDc5v6FQ",
+    "note": "16시 오픈이에요....",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?autoRotate=true&type=f300_300&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20220308_253%2F16467241845436RBOO_PNG%2F1.png"
+  },
+  {
+    "id": 3,
+    "name": "카츠진 노량진점",
+    "category": "일식",
+    "menu1": { "name": "등심카츠", "price": 10900 },
+    "menu2": null,
+    "link": "https://naver.me/GlVROknO",
+    "note": "등심카츠 가격이 올랐어요 ㅠ\n카츠 먹을 때 입천장 조심하세요..",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?autoRotate=true&type=f300_300&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20180607_188%2F1528353139693gOY3Q_JPEG%2FLzsOu3SWuYCZHny4-SDP0V_z.jpg"
+  },
+  {
+    "id": 5,
+    "name": "만리장성",
+    "category": "중식",
+    "menu1": { "name": "짜장면", "price": 5000 },
+    "menu2": { "name": "짬뽕", "price": 5500 },
+    "link": "https://naver.me/FArRqgO9",
+    "note": "",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20171129_261%2F1511951252600Vfiq5_JPEG%2Fimage.jpg"
+  },
+  {
+    "id": 6,
+    "name": "이모네포장마차",
+    "category": "한식",
+    "menu1": { "name": "두부삼합", "price": 18000 },
+    "menu2": { "name": "계란말이", "price": 7000 },
+    "link": "https://naver.me/F0KDKywC",
+    "note": "",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?autoRotate=true&type=f300_300&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20210220_268%2F1613746901887wBj16_JPEG%2FFBVjW_roFTZRu0bILCJIFoao.jpg"
+  },
+  {
+    "id": 8,
+    "name": "노량진국수",
+    "category": "분식",
+    "menu1": { "name": "잔치국수", "price": 6000 },
+    "menu2": { "name": "비빔국수", "price": 7000 },
+    "link": "https://naver.me/5nPKWqid",
+    "note": "가게 앞에 비숑 상주 (요즘엔 없어여ㅠㅡㅠ)",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?autoRotate=true&type=f300_300&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20230522_64%2F1684744152792ekFEI_JPEG%2FIMG_4403.jpeg"
+  },
+  {
+    "id": 9,
+    "name": "백가네 칼국수",
+    "category": "분식",
+    "menu1": { "name": "해물칼국수", "price": 8000 },
+    "menu2": { "name": "해물칼제비", "price": 7000 },
+    "link": "https://naver.me/5KZbdIJe",
+    "note": "칼제비 완전 맛있어요",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?autoRotate=true&type=f300_300&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20190816_157%2F1565943299955UFJmE_JPEG%2F6fjRl_Cu3ZequZ_GkZnuQCV4.jpg"
+  },
+  {
+    "id": 10,
+    "name": "엄마의 손맛",
+    "category": "한식",
+    "menu1": { "name": "김치볶음밥", "price": 6000 },
+    "menu2": { "name": "라면", "price": 3500 },
+    "link": "https://naver.me/GlVyWhWT",
+    "note": "Alex 추천 찐찐 맛집\n가격 500원씩 오른듯합니다. 김볶 6천원이에요",
+    "score": null,
+    "isRecommended": true,
+    "thumbnail": "https://d12zq4w4guyljn.cloudfront.net/300_300_20241116010347718_photo_8d1f27267bdc.webp"
+  },
+  {
+    "id": 11,
+    "name": "명인설렁탕",
+    "category": "한식",
+    "menu1": { "name": "명인 설렁탕", "price": 12500 },
+    "menu2": { "name": "명인 설렁탕(특)", "price": 16500 },
+    "link": "https://naver.me/II1QiQya",
+    "note": "Alex 추천 찐 맛집\n설렁탕 먹을때 입천장 데이는거 조심하세요",
+    "score": 9,
+    "isRecommended": true,
+    "thumbnail": "https://d12zq4w4guyljn.cloudfront.net/300_300_20251027051852_photo1_6ea1c47d50fc.webp"
+  },
+  {
+    "id": 12,
+    "name": "소복식당",
+    "category": "분식",
+    "menu1": { "name": "김치말이국수", "price": 7000 },
+    "menu2": null,
+    "link": "https://naver.me/xDja3DfO",
+    "note": "기본 반찬이랑 처음 나오는 도토리 국 맛남",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?autoRotate=true&type=f300_300&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20260104_232%2F1767510111193XIIep_JPEG%2FIMG_8913.jpeg"
+  },
+  {
+    "id": 13,
+    "name": "정가네밥상",
+    "category": "한식",
+    "menu1": { "name": "백반", "price": 6000 },
+    "menu2": { "name": "제육볶음", "price": 8000 },
+    "link": "https://naver.me/xivpNTWC",
+    "note": "",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?autoRotate=true&type=f300_300&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20200220_209%2F1582176067714ipLIO_JPEG%2FQNXkBCW8vZuNFnuY0R5MkQtb.jpg"
+  },
+  {
+    "id": 14,
+    "name": "남원골추어탕",
+    "category": "한식",
+    "menu1": { "name": "추어탕", "price": 9000 },
+    "menu2": { "name": "동태탕", "price": 10000 },
+    "link": "https://naver.me/FjoUHJ6A",
+    "note": "",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?autoRotate=true&type=f300_300&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20180207_190%2F1517981148765wkVPI_PNG%2Fa-4_4G_8UKo5izi-ssIkrZWU.png"
+  },
+  {
+    "id": 15,
+    "name": "오코노미스토리",
+    "category": "분식",
+    "menu1": { "name": "야끼소바", "price": 10000 },
+    "menu2": { "name": "김치삼겹오코", "price": 13500 },
+    "link": "https://naver.me/Gyeyy1ZS",
+    "note": "",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?autoRotate=true&type=f300_300&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20210108_86%2F1610036552217tPxmX_JPEG%2FlF1rLRZzyxI4GmJOWCszuiQC.jpeg.jpg"
+  },
+  {
+    "id": 16,
+    "name": "하얼빈양꼬치",
+    "category": "중식",
+    "menu1": { "name": "양꼬치", "price": 15000 },
+    "menu2": { "name": "마라탕", "price": 10000 },
+    "link": "https://naver.me/FwnScZW4",
+    "note": "",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://d12zq4w4guyljn.cloudfront.net/300_300_20240716111418557_photo_74a53e6be985.webp"
+  },
+  {
+    "id": 17,
+    "name": "두꺼비 부대찌개",
+    "category": "한식",
+    "menu1": { "name": "부대찌개", "price": 9000 },
+    "menu2": { "name": "라면사리", "price": 1000 },
+    "link": "https://naver.me/5MU5Jbd1",
+    "note": "좌식만 아니면.....다 좋음",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?autoRotate=true&type=f300_300&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20190816_156%2F1565944043362cCi4U_JPEG%2FWBwRf3-OmTM5ZnstN5zXdqFh.jpg"
+  },
+  {
+    "id": 18,
+    "name": "아이러브피자 노량진2동점",
+    "category": "양식",
+    "menu1": { "name": "치즈피자", "price": 11000 },
+    "menu2": { "name": "고구마피자", "price": 12000 },
+    "link": "https://naver.me/56ICKaVP",
+    "note": "16:00 오픈!",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20170525_24%2F1495684675830TtQMf_JPEG%2F186475528775.jpg"
+  },
+  {
+    "id": 19,
+    "name": "뚝스토리 노량진 본점",
+    "category": "양식",
+    "menu1": { "name": "모둠해물스파게티", "price": 8500 },
+    "menu2": { "name": "까르보나라", "price": 8000 },
+    "link": "https://naver.me/5dxPCdNw",
+    "note": "양송이 로제 리조또 맛있어요",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://d12zq4w4guyljn.cloudfront.net/300_300_20210705032712326_photo_fe1650f3c430.webp"
+  },
+  {
+    "id": 20,
+    "name": "하노이별",
+    "category": "아시안",
+    "menu1": { "name": "홍두깨 쌀국수", "price": 8000 },
+    "menu2": { "name": "해물팟타이", "price": 12000 },
+    "link": "https://naver.me/FXwQXjA4",
+    "note": "",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?autoRotate=true&type=f300_300&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20210220_268%2F1613746901887wBj16_JPEG%2FFBVjW_roFTZRu0bILCJIFoao.jpg"
+  },
+  {
+    "id": 21,
+    "name": "무공돈까스 노량진점",
+    "category": "일식",
+    "menu1": { "name": "무공돈까스", "price": 11000 },
+    "menu2": { "name": "치즈돈까스", "price": 10000 },
+    "link": "https://naver.me/G5JcWD2A",
+    "note": "Alex 추천 찐 맛집",
+    "score": null,
+    "isRecommended": true,
+    "thumbnail": "https://search.pstatic.net/common/?autoRotate=true&type=f300_300&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20250321_6%2F1742543636190jN8b6_JPEG%2F1.jpg"
+  },
+  {
+    "id": 23,
+    "name": "소반갈비탕 노량진점",
+    "category": "한식",
+    "menu1": { "name": "소반갈비탕", "price": 11900 },
+    "menu2": { "name": "갈비찜", "price": 15900 },
+    "link": "https://naver.me/GaMk6RaD",
+    "note": "",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?autoRotate=true&type=f300_300&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20170220_24%2F1487519191537u0Ma7_JPEG%2F186170407651381_0.jpeg"
+  },
+  {
+    "id": 24,
+    "name": "교뽕",
+    "category": "중식",
+    "menu1": { "name": "삼선짬뽕", "price": 9000 },
+    "menu2": { "name": "간짜장", "price": 7000 },
+    "link": "https://naver.me/FArAufn2",
+    "note": "",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?autoRotate=true&type=f300_300&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20170119_194%2F1484793851209KO4Jt_JPEG%2F186065617522225_0.jpeg"
+  },
+  {
+    "id": 25,
+    "name": "건강한 밥상 한식뷔페",
+    "category": "한식",
+    "menu1": { "name": "매일 다른 건강한 뷔페", "price": 8000 },
+    "menu2": null,
+    "link": "https://naver.me/xY9CTVME",
+    "note": "오지마세요...Alex만 갈거임...",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?autoRotate=true&type=f300_300&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20240405_160%2F1712305673930MDc2d_JPEG%2FResized_%25B0%25C7%25B0%25AD%25B9%25E4%25BB%25F31_20240313185218_1710371998464.jpeg"
+  },
+  {
+    "id": 26,
+    "name": "레알짱 노량진3호점",
+    "category": "기타",
+    "menu1": { "name": "1식", "price": 7500 },
+    "menu2": { "name": "10식", "price": 66000 },
+    "link": "https://map.naver.com/p/entry/place/1873457373?lng=126.943329&lat=37.512767&placePath=%2Fhome&entry=plt&searchType=place&c=15.00,0,0,0,dh",
+    "note": "미디어 추천 맛집",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?autoRotate=true&type=f300_300&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20181209_180%2F15443124287246gaA7_JPEG%2FhGCUButPevv0o715surW0Wd-.jpg"
+  },
+  {
+    "id": 27,
+    "name": "미태리 노량진학원가점",
+    "category": "양식",
+    "menu1": { "name": "토마토 파스타", "price": 6800 },
+    "menu2": { "name": "봉골레 파스타", "price": 8800 },
+    "link": "https://naver.me/FWrFN3B7",
+    "note": "",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?autoRotate=true&type=f300_300&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20250410_12%2F1744249692366hT6Yh_JPEG%2F1.jpg"
+  },
+  {
+    "id": 28,
+    "name": "맑곰",
+    "category": "한식",
+    "menu1": { "name": "돼지곰탕", "price": 5900 },
+    "menu2": { "name": "소곰탕", "price": 7900 },
+    "link": "https://naver.me/F8by81rE",
+    "note": "Alex 추천 찐 맛집 / 밥이랑 국물 더 받을 수 있어요!",
+    "score": null,
+    "isRecommended": true,
+    "thumbnail": "https://d12zq4w4guyljn.cloudfront.net/300_300_20250403071023513_photo_d435e6580aee.webp"
+  },
+  {
+    "id": 29,
+    "name": "거구회관",
+    "category": "한식",
+    "menu1": { "name": "반계탕", "price": 9000 },
+    "menu2": { "name": "김치찌개", "price": 8000 },
+    "link": "https://naver.me/x8liHe8V",
+    "note": "Alex 추천 찐 맛집 / 사장님이 엄청 잘하심 / 남도 스똬일~",
+    "score": null,
+    "isRecommended": true,
+    "thumbnail": "https://search.pstatic.net/common/?autoRotate=true&type=f300_300&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20250910_70%2F1757503168034RO1yp_JPEG%2FIMG_8143.jpeg"
+  },
+  {
+    "id": 30,
+    "name": "궁중순대국",
+    "category": "한식",
+    "menu1": { "name": "순대국", "price": 9000 },
+    "menu2": { "name": "에스까르고", "price": 15000 },
+    "link": "https://map.naver.com/p/entry/place/1036434210?lng=126.9359938&lat=37.5125344&placePath=%2F&entry=pll&searchType=place&c=15.00,0,0,0,dh",
+    "note": "순대국 다대기 따로 달라해야됨 / 매움",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?autoRotate=true&type=f300_300&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20250331_209%2F1743396765367Cx50H_JPEG%2FKakaoTalk_20250331_135133325.jpg"
+  },
+  {
+    "id": 31,
+    "name": "이쉐프",
+    "category": "양식",
+    "menu1": { "name": "함박스테이크", "price": 9500 },
+    "menu2": { "name": "목살 스테이크", "price": 8500 },
+    "link": "https://naver.me/xcKnf1Ne",
+    "note": "",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://d12zq4w4guyljn.cloudfront.net/300_300_20250826030330_photo1_50d191a28b45.webp"
+  },
+  {
+    "id": 32,
+    "name": "버거킹 노량진점",
+    "category": "양식",
+    "menu1": { "name": "와퍼", "price": 7200 },
+    "menu2": { "name": "몬스터와퍼", "price": 9400 },
+    "link": "https://map.naver.com/p/search/%EB%B2%84%EA%B1%B0%ED%82%B9%20%EB%85%B8%EB%9F%89%EC%A7%84%EC%A0%90/place/2087370535?placePath=/home?bk_query=%EB%B2%84%EA%B1%B0%ED%82%B9%20%EB%85%B8%EB%9F%89%EC%A7%84%EC%A0%90&entry=pll&from=map&fromPanelNum=2&timestamp=202601221848&locale=ko&svcName=map_pcv5&searchText=%EB%B2%84%EA%B1%B0%ED%82%B9%20%EB%85%B8%EB%9F%89%EC%A7%84%EC%A0%90&searchType=place&c=15.00,0,0,0,dh",
+    "note": "히히",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20251223_134%2F1766446244678RghU1_PNG%2F%25B3%25EB%25B7%25AE%25C1%25F81.png"
+  },
+  {
+    "id": 33,
+    "name": "김밥사랑",
+    "category": "분식",
+    "menu1": { "name": "치즈김밥", "price": 4500 },
+    "menu2": { "name": "불고기김밥", "price": 5500 },
+    "link": "https://naver.me/G8sWl9xR",
+    "note": "여기 재밌어요! 모밀정식에 면이 없어요..",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://d12zq4w4guyljn.cloudfront.net/300_300_20210706013217_photo1_fc2419b171f1.webp"
+  },
+  {
+    "id": 34,
+    "name": "서브웨이",
+    "category": "양식",
+    "menu1": { "name": "이탈리안 B.M.T.", "price": 7200 },
+    "menu2": { "name": "에그마요", "price": 5900 },
+    "link": "https://map.naver.com/p/search/%EC%84%9C%EB%B8%8C%EC%9B%A8%EC%9D%B4%EB%85%B8%EB%9F%89%EC%A7%84%EC%A0%90/place/1896424647?c=13.00,0,0,0,dh&placePath=/home?bk_query=%EC%84%9C%EB%B8%8C%EC%9B%A8%EC%9D%B4%EB%85%B8%EB%9F%89%EC%A7%84%EC%A0%90&entry=bmp&from=map&fromPanelNum=2&timestamp=202601221850&locale=ko&svcName=map_pcv5&searchText=%EC%84%9C%EB%B8%8C%EC%9B%A8%EC%9D%B4%EB%85%B8%EB%9F%89%EC%A7%84%EC%A0%90",
+    "note": "",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?src=http%3A%2F%2Fblogfiles.naver.net%2FMjAyNTA2MTBfMjk4%2FMDAxNzQ5NDg0NTk2MzQy.5tFeTaqx4GTnDvexkWYyEf0ZtJj9XjIynHb1mJIj1CMg.4_1qW4d_BL7_xploGdzCj4-Sy0tZK26d_vHrIjv2KHAg.JPEG%2FIMG%25A3%25DF7692.JPG"
+  },
+  {
+    "id": 35,
+    "name": "saigonlee",
+    "category": "아시안",
+    "menu1": { "name": "쌀국수", "price": 6900 },
+    "menu2": { "name": "반미", "price": 5900 },
+    "link": "https://naver.me/FGoeECtd",
+    "note": "국물이 기가 막힙니다! | 고수 못 먹으면 미리 말해야함!",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://d12zq4w4guyljn.cloudfront.net/300_300_20251104110343_photo1_z3o0TRSOFsgw.webp"
+  },
+  {
+    "id": 36,
+    "name": "장승배기로 164",
+    "category": "일식",
+    "menu1": { "name": "우삼겹 나베", "price": 9900 },
+    "menu2": { "name": "스키야키", "price": 11900 },
+    "link": "https://naver.me/5RtQA3d1",
+    "note": "감성비 가성비 추천!! 혼밥 가능",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://d12zq4w4guyljn.cloudfront.net/300_300_20240904072703_photo2_26a7ab6ca08c.webp"
+  },
+  {
+    "id": 37,
+    "name": "와우신내떡",
+    "category": "분식",
+    "menu1": { "name": "떡볶이", "price": 4500 },
+    "menu2": { "name": "갈릭후라이", "price": 4900 },
+    "link": "https://naver.me/5Q4GsJlu",
+    "note": "드셔보신 분들 후기 좀 주세요",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://d12zq4w4guyljn.cloudfront.net/300_300_20251122090737_photo1_7a5be27b2076.webp"
+  },
+  {
+    "id": 38,
+    "name": "규동집",
+    "category": "일식",
+    "menu1": { "name": "규동한상", "price": 10900 },
+    "menu2": { "name": "카라이규동", "price": 8500 },
+    "link": "https://naver.me/IxbkxLCc",
+    "note": "드셔보신 분들 후기 좀 주세요",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://d12zq4w4guyljn.cloudfront.net/300_300_20250808052753_photo1_50d191a28b45.webp"
+  },
+  {
+    "id": 39,
+    "name": "청록미나리식당",
+    "category": "한식",
+    "menu1": { "name": "미나리 샤브샤브", "price": 14000 },
+    "menu2": { "name": "산더미 오리차돌", "price": 16000 },
+    "link": "https://naver.me/5gd6J4aB",
+    "note": "드셔보신 분들 후기 좀 주세요",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://d12zq4w4guyljn.cloudfront.net/300_300_20251022123427536_photo_459709535335.webp"
+  },
+  {
+    "id": 40,
+    "name": "와가마마",
+    "category": "일식",
+    "menu1": { "name": "함박스테이크", "price": 11000 },
+    "menu2": { "name": "양념돈까스", "price": 9500 },
+    "link": "https://naver.me/GHEDvShM",
+    "note": "드셔보신 분들 후기 좀 주세요",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://d12zq4w4guyljn.cloudfront.net/300_300_20230514052622268_photo_1f6af146c75c.webp"
+  },
+  {
+    "id": 41,
+    "name": "수제빚다",
+    "category": "한식",
+    "menu1": { "name": "수제비세트", "price": 13000 },
+    "menu2": { "name": "만두국세트", "price": 12500 },
+    "link": "https://naver.me/GKvsMLG9",
+    "note": "드셔보신 분들 후기 좀 주세요",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?autoRotate=true&type=f300_300&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20260106_13%2F176765212929153W8S_JPEG%2F%25BD%25C5_%25B8%25DE%25B4%25BA%25C6%25C7_2_%25BA%25F1%25B8%25C1.jpg"
+  },
+  {
+    "id": 42,
+    "name": "토속골",
+    "category": "한식",
+    "menu1": { "name": "닭개장", "price": 9000 },
+    "menu2": { "name": "닭곰탕", "price": 8000 },
+    "link": "https://naver.me/I5F5jfRu",
+    "note": "양이 많음 배터짐\n많이 뜨거우니 덜어먹으세요!",
+    "score": 7,
+    "isRecommended": false,
+    "thumbnail": "https://d12zq4w4guyljn.cloudfront.net/300_300_20241222052657_photo1_50d191a28b45.webp"
+  },
+  {
+    "id": 43,
+    "name": "예나 이디오피",
+    "category": "아시안",
+    "menu1": { "name": "마하바라위", "price": 13000 },
+    "menu2": { "name": "도로 웟", "price": 12000 },
+    "link": "https://naver.me/5Q37Gs63",
+    "note": "에티오피아 식당 / 드셔보신 분들 후기 좀 주세요",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?autoRotate=true&type=f300_300&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20241204_127%2F1733316796456zk1lb_JPEG%2F1000039758.jpg"
+  },
+  {
+    "id": 44,
+    "name": "장터식당",
+    "category": "한식",
+    "menu1": { "name": "회덮밥", "price": 10000 },
+    "menu2": { "name": "모듬회", "price": 22000 },
+    "link": "https://naver.me/GNRjvdn5",
+    "note": "노량진 수산시장 2층에 있어요",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://d12zq4w4guyljn.cloudfront.net/300_300_20230205025554691_photo_bf09842c7822.webp"
+  },
+  {
+    "id": 45,
+    "name": "꽁칼 (꽁보리네칼국수)",
+    "category": "분식",
+    "menu1": { "name": "떡지 칼국수", "price": 7500 },
+    "menu2": { "name": "만두 닭 떡국", "price": 9900 },
+    "link": "https://naver.me/5CW71ZA7",
+    "note": "보리 비빔밥 JMT, 양 많음",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://d12zq4w4guyljn.cloudfront.net/300_300_20251231091226_photo1_d2945d695908.webp"
+  },
+  {
+    "id": 46,
+    "name": "금자김밥",
+    "category": "분식",
+    "menu1": { "name": "김밥", "price": 3500 },
+    "menu2": { "name": "라면", "price": 4000 },
+    "link": "https://naver.me/G1wDYZM5",
+    "note": "",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?autoRotate=true&type=f300_300&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20210220_268%2F1613746901887wBj16_JPEG%2FFBVjW_roFTZRu0bILCJIFoao.jpg"
+  },
+  {
+    "id": 47,
+    "name": "동백",
+    "category": "일식",
+    "menu1": { "name": "동백 라면세트", "price": 10000 },
+    "menu2": null,
+    "link": "https://naver.me/5N15NGEM",
+    "note": "세트에 왕고기완자와 닭고기+콜라까지 가성비 좋아요",
+    "score": 8,
+    "isRecommended": false,
+    "thumbnail": "https://search.pstatic.net/common/?autoRotate=true&type=f300_300&src=https%3A%2F%2Fldb-phinf.pstatic.net%2F20230522_64%2F1684744152792ekFEI_JPEG%2FIMG_4403.jpeg"
+  },
+  {
+    "id": 48,
+    "name": "우정식당",
+    "category": "한식",
+    "menu1": { "name": "김치,부대 찌개", "price": 8000 },
+    "menu2": { "name": "제육덮밥", "price": 7000 },
+    "link": "https://map.naver.com/p/entry/place/1230315996?lng=126.937448&lat=37.512578&placePath=/home?from=map&fromPanelNum=1&additionalHeight=76&timestamp=202601221852&locale=ko&svcName=map_pcv5&entry=plt&searchType=place&c=15.00,0,0,0,dh",
+    "note": "국물 엄청 뜨거움 최고!",
+    "score": null,
+    "isRecommended": false,
+    "thumbnail": "https://d12zq4w4guyljn.cloudfront.net/300_300_20240906053914_photo1_26a7ab6ca08c.webp"
+  }
+];
+
+        // State
+        let filteredRestaurants = [...restaurants];
+        let currentSort = { field: null, direction: 'asc' };
+
+        // Category colors
+        const categoryColors = {
+            '한식': '#3b82f6',
+            '중식': '#ef4444',
+            '일식': '#6366f1',
+            '양식': '#22c55e',
+            '아시안': '#a855f7',
+            '분식': '#ec4899',
+            '기타': '#6b7280'
+        };
+
+        // Category thumbnails (Unsplash)
+        const categoryThumbnails = {
+            '한식': 'https://images.unsplash.com/photo-1498654896293-37aacf113fd9?w=400&h=250&fit=crop',
+            '중식': 'https://images.unsplash.com/photo-1563245372-f21724e3856d?w=400&h=250&fit=crop',
+            '일식': 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=400&h=250&fit=crop',
+            '양식': 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&h=250&fit=crop',
+            '아시안': 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=400&h=250&fit=crop',
+            '분식': 'https://images.unsplash.com/photo-1590301157890-4810ed352733?w=400&h=250&fit=crop',
+            '기타': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=250&fit=crop'
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            updateStats();
+            renderCharts();
+            renderCards();
+            setupEventListeners();
+        });
+
+        // Event Listeners
+        function setupEventListeners() {
+            document.getElementById('searchInput').addEventListener('input', debounce(applyFilters, 300));
+            document.getElementById('categoryFilter').addEventListener('change', applyFilters);
+            document.getElementById('priceFilter').addEventListener('change', applyFilters);
+            document.getElementById('recommendedFilter').addEventListener('change', applyFilters);
+        }
+
+        // Debounce
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+        // Update Stats
+        function updateStats() {
+            const total = restaurants.length;
+            const recommended = restaurants.filter(r => r.isRecommended).length;
+            const prices = restaurants.filter(r => r.menu1?.price).map(r => r.menu1.price);
+            const avgPrice = prices.length ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) : 0;
+
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('avgPrice').textContent = avgPrice.toLocaleString() + '원';
+            document.getElementById('recommendedCount').textContent = recommended;
+            document.getElementById('filteredCount').textContent = filteredRestaurants.length;
+        }
+
+        // Apply Filters
+        function applyFilters() {
+            const searchQuery = document.getElementById('searchInput').value.toLowerCase().trim();
+            const categoryFilter = document.getElementById('categoryFilter').value;
+            const priceFilter = document.getElementById('priceFilter').value;
+            const recommendedOnly = document.getElementById('recommendedFilter').checked;
+
+            filteredRestaurants = restaurants.filter(r => {
+                // Search
+                if (searchQuery) {
+                    const searchFields = [
+                        r.name,
+                        r.menu1?.name,
+                        r.menu2?.name,
+                        r.category,
+                        r.note
+                    ].filter(Boolean).join(' ').toLowerCase();
+                    if (!searchFields.includes(searchQuery)) return false;
+                }
+
+                // Category
+                if (categoryFilter !== 'all' && r.category !== categoryFilter) return false;
+
+                // Price
+                if (priceFilter !== 'all') {
+                    const price = r.menu1?.price || 0;
+                    if (priceFilter === 'low' && price > 7000) return false;
+                    if (priceFilter === 'mid' && (price <= 7000 || price > 12000)) return false;
+                    if (priceFilter === 'high' && price <= 12000) return false;
+                }
+
+                // Recommended
+                if (recommendedOnly && !r.isRecommended) return false;
+
+                return true;
+            });
+
+            // Re-apply sort
+            if (currentSort.field) {
+                sortRestaurants(currentSort.field, currentSort.direction);
+            }
+
+            document.getElementById('filteredCount').textContent = filteredRestaurants.length;
+            renderCards();
+        }
+
+        // Sort
+        function sortBy(field) {
+            const newDirection = currentSort.field === field && currentSort.direction === 'asc' ? 'desc' : 'asc';
+            currentSort = { field, direction: newDirection };
+
+            // Update sort button styles
+            ['name', 'category', 'price'].forEach(f => {
+                const btn = document.getElementById(`sortBtn-${f}`);
+                const indicator = document.getElementById(`sort-${f}`);
+                if (f === field) {
+                    btn.classList.add('active');
+                    indicator.textContent = newDirection === 'asc' ? '↑' : '↓';
+                } else {
+                    btn.classList.remove('active');
+                    indicator.textContent = '↕';
+                }
+            });
+
+            sortRestaurants(field, newDirection);
+            renderCards();
+        }
+
+        function sortRestaurants(field, direction) {
+            filteredRestaurants.sort((a, b) => {
+                let valueA, valueB;
+                switch (field) {
+                    case 'name':
+                        valueA = a.name;
+                        valueB = b.name;
+                        return direction === 'asc'
+                            ? valueA.localeCompare(valueB, 'ko')
+                            : valueB.localeCompare(valueA, 'ko');
+                    case 'category':
+                        valueA = a.category;
+                        valueB = b.category;
+                        return direction === 'asc'
+                            ? valueA.localeCompare(valueB, 'ko')
+                            : valueB.localeCompare(valueA, 'ko');
+                    case 'price':
+                        valueA = a.menu1?.price || 0;
+                        valueB = b.menu1?.price || 0;
+                        return direction === 'asc' ? valueA - valueB : valueB - valueA;
+                }
+            });
+        }
+
+        // Render Cards
+        function renderCards() {
+            const container = document.getElementById('restaurantCards');
+            container.innerHTML = filteredRestaurants.map(r => {
+                const hasMenu = r.menu1 || r.menu2;
+                const hasNote = r.note && r.note.trim();
+                const hasScore = r.score !== null;
+                const thumbnail = r.thumbnail || categoryThumbnails[r.category] || categoryThumbnails['기타'];
+
+                return `
+                <div class="bg-white rounded-xl shadow-md overflow-hidden transition-card card-hover flex flex-col
+                    ${r.isRecommended ? 'border-2 border-yellow-400 bg-gradient-to-br from-yellow-50 to-white' : ''}">
+
+                    <!-- Thumbnail -->
+                    <div class="relative h-40 overflow-hidden">
+                        <img src="${thumbnail}" alt="${r.name}"
+                             class="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                             onerror="this.src='${categoryThumbnails['기타']}'">
+                        ${r.isRecommended ? '<span class="absolute top-2 left-2 bg-yellow-400 text-yellow-900 px-2 py-1 rounded-full text-xs font-bold">⭐ 추천</span>' : ''}
+                        <span class="absolute top-2 right-2 px-2.5 py-1 text-xs font-semibold rounded-full text-white"
+                              style="background-color: ${categoryColors[r.category]}">
+                            ${r.category}
+                        </span>
+                    </div>
+
+                    <div class="p-4 flex flex-col flex-grow">
+                    <!-- Header -->
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex items-center gap-2 flex-1 min-w-0">
+                            <h3 class="font-bold text-lg text-gray-800 truncate">${r.name}</h3>
+                        </div>
+                    </div>
+
+                    <!-- Menu Section -->
+                    <div class="space-y-2 mb-3 flex-grow">
+                        ${r.menu1 ? `
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-700 truncate mr-2">${r.menu1.name}</span>
+                            <span class="font-semibold text-orange-600 whitespace-nowrap">${r.menu1.price?.toLocaleString() || '-'}원</span>
+                        </div>
+                        ` : ''}
+                        ${r.menu2 ? `
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-gray-500 truncate mr-2">${r.menu2.name}</span>
+                            <span class="text-gray-500 whitespace-nowrap">${r.menu2.price?.toLocaleString() || '-'}원</span>
+                        </div>
+                        ` : ''}
+                        ${!hasMenu ? '<p class="text-gray-400 text-sm">메뉴 정보 없음</p>' : ''}
+                    </div>
+
+                    <!-- Note -->
+                    ${hasNote ? `
+                    <div class="mb-3">
+                        <p class="text-sm text-gray-500 line-clamp-2" title="${r.note.replace(/"/g, '&quot;')}">${r.note.replace(/\n/g, ' ')}</p>
+                    </div>
+                    ` : ''}
+
+                    <!-- Score -->
+                    ${hasScore ? `
+                    <div class="flex items-center gap-1 mb-3">
+                        <span class="text-yellow-500">★</span>
+                        <span class="font-medium text-gray-700">${r.score}점</span>
+                    </div>
+                    ` : ''}
+
+                    <!-- Action Button -->
+                    ${r.link ? `
+                    <a href="${r.link}" target="_blank" rel="noopener noreferrer"
+                       class="block w-full text-center bg-orange-500 hover:bg-orange-600 text-white
+                              font-medium py-2.5 px-4 rounded-lg transition-colors mt-auto">
+                        📍 네이버 지도
+                    </a>
+                    ` : `
+                    <div class="block w-full text-center bg-gray-200 text-gray-400
+                                font-medium py-2.5 px-4 rounded-lg mt-auto">
+                        링크 없음
+                    </div>
+                    `}
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        // Render Charts
+        function renderCharts() {
+            // Category Chart
+            const categoryCount = {};
+            restaurants.forEach(r => {
+                categoryCount[r.category] = (categoryCount[r.category] || 0) + 1;
+            });
+
+            new Chart(document.getElementById('categoryChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(categoryCount),
+                    datasets: [{
+                        data: Object.values(categoryCount),
+                        backgroundColor: Object.keys(categoryCount).map(c => categoryColors[c])
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: { family: 'Noto Sans KR' }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Price Chart
+            const priceRanges = { '~7,000원': 0, '~12,000원': 0, '12,000원~': 0 };
+            restaurants.forEach(r => {
+                const price = r.menu1?.price || 0;
+                if (price === 0) return;
+                if (price <= 7000) priceRanges['~7,000원']++;
+                else if (price <= 12000) priceRanges['~12,000원']++;
+                else priceRanges['12,000원~']++;
+            });
+
+            new Chart(document.getElementById('priceChart'), {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(priceRanges),
+                    datasets: [{
+                        label: '맛집 수',
+                        data: Object.values(priceRanges),
+                        backgroundColor: '#f97316',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 5,
+                                font: { family: 'Noto Sans KR' }
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: { family: 'Noto Sans KR' }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
